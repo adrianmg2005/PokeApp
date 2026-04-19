@@ -49,6 +49,16 @@ public class ApiController {
                     m.put("name", p.name);
                     m.put("spanishName", pokeApi.getSpanishPokemonName(p.name));
                     m.put("types", p.types != null ? p.types.stream().map(t -> t.type.name).toList() : List.of());
+                    // Include base stats for advanced filtering
+                    Map<String, Integer> stats = new LinkedHashMap<>();
+                    stats.put("hp", p.getStat("hp"));
+                    stats.put("attack", p.getStat("attack"));
+                    stats.put("defense", p.getStat("defense"));
+                    stats.put("special-attack", p.getStat("special-attack"));
+                    stats.put("special-defense", p.getStat("special-defense"));
+                    stats.put("speed", p.getStat("speed"));
+                    m.put("stats", stats);
+                    m.put("totalStats", stats.values().stream().mapToInt(Integer::intValue).sum());
                     return m;
                 })
                 .collect(Collectors.toList());

@@ -470,6 +470,75 @@ button:focus:not(:focus-visible) { outline: none; }
     box-shadow: 0 2px 10px rgba(227,53,13,0.25);
 }
 
+/* ── Stat Filters ──────────── */
+.stat-filters { display: flex; flex-direction: column; gap: 5px; }
+.stat-filter-row {
+    display: grid; grid-template-columns: 70px 1fr auto 1fr; gap: 6px;
+    align-items: center;
+}
+.stat-filter-row label {
+    font-size: 11px; font-weight: 700; color: var(--text-secondary);
+}
+.stat-filter-row span {
+    font-size: 11px; color: var(--text-dim); text-align: center;
+}
+.stat-filter-row input[type="number"] {
+    width: 100%; padding: 4px 6px; border: 1px solid var(--border);
+    border-radius: 6px; font-size: 11px; font-family: var(--font);
+    background: var(--bg-input); color: var(--text);
+    text-align: center; outline: none;
+    transition: border-color 0.2s var(--ease);
+}
+.stat-filter-row input[type="number"]:focus {
+    border-color: var(--blue);
+}
+.stat-filter-row input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+.stat-filter-clear {
+    margin-top: 4px; padding: 5px 10px; border: 1px solid var(--border);
+    border-radius: 7px; font-size: 10px; font-weight: 600;
+    background: transparent; color: var(--text-dim); cursor: pointer;
+    font-family: var(--font); transition: all 0.2s var(--ease);
+}
+.stat-filter-clear:hover { background: var(--bg-hover-strong); color: var(--red); border-color: var(--red); }
+
+/* ── Nature/EV Calculator ── */
+.calc-controls {
+    display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.calc-row { display: flex; align-items: center; gap: 8px; }
+.calc-row label { font-size: 12px; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
+.calc-row select {
+    padding: 5px 8px; border: 1px solid var(--border); border-radius: 7px;
+    font-size: 12px; font-family: var(--font); background: var(--bg-input);
+    color: var(--text); outline: none; cursor: pointer;
+}
+.calc-row select:focus { border-color: var(--blue); }
+.calc-table {
+    width: 100%; border-collapse: collapse; font-size: 12px;
+}
+.calc-table th {
+    padding: 6px 8px; font-weight: 700; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--text-dim); border-bottom: 2px solid var(--border);
+    text-align: center;
+}
+.calc-table th:first-child { text-align: left; }
+.calc-table td { padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--border-light, #f0f0f0); }
+.calc-label { text-align: left !important; font-weight: 600; color: var(--text-secondary); }
+.calc-base { font-weight: 700; color: var(--text); }
+.calc-table input[type="number"] {
+    width: 52px; padding: 4px 4px; border: 1px solid var(--border);
+    border-radius: 6px; font-size: 12px; font-family: var(--font);
+    background: var(--bg-input); color: var(--text);
+    text-align: center; outline: none;
+}
+.calc-table input[type="number"]:focus { border-color: var(--blue); }
+.calc-table input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+.calc-result { font-weight: 800; font-size: 13px; }
+.calc-total {
+    margin-top: 8px; text-align: right;
+    font-weight: 800; font-size: 13px; color: var(--text);
+}
+
 /* ════════════════════════════════════════════
    LIST MODE BUTTONS
    ════════════════════════════════════════════ */

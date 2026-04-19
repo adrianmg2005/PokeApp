@@ -59,6 +59,12 @@ let searchHistory = JSON.parse(localStorage.getItem('pokeapp_history') || '[]');
 // Filter state (multi-select)
 let activeTypeFilters = new Set();
 let activeGenFilters = new Set();
+let statFilters = {};
+
+const STAT_FILTER_MAP = [
+    {id:'hp', key:'hp'}, {id:'atk', key:'attack'}, {id:'def', key:'defense'},
+    {id:'spa', key:'special-attack'}, {id:'spd', key:'special-defense'}, {id:'spe', key:'speed'}
+];
 let listMode = 'all';
 
 // Pagination
@@ -204,11 +210,57 @@ function setupFilters() {
             applyFilters();
         });
     });
+
+    // Stat filters
+    let statDebounce;
+    STAT_FILTER_MAP.forEach(sf => {
+        ['min','max'].forEach(bound => {
+            const input = document.getElementById(`filter-${sf.id}-${bound}`);
+            if (input) input.addEventListener('input', () => {
+                clearTimeout(statDebounce);
+                statDebounce = setTimeout(() => { readStatFilters(); updateFilterBadge(); applyFilters(); }, 300);
+            });
+        });
+    });
+    ['min','max'].forEach(bound => {
+        const input = document.getElementById(`filter-total-${bound}`);
+        if (input) input.addEventListener('input', () => {
+            clearTimeout(statDebounce);
+            statDebounce = setTimeout(() => { readStatFilters(); updateFilterBadge(); applyFilters(); }, 300);
+        });
+    });
+    const clearBtn = document.getElementById('stat-filter-clear');
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+        STAT_FILTER_MAP.forEach(sf => {
+            ['min','max'].forEach(b => { const el = document.getElementById(`filter-${sf.id}-${b}`); if (el) el.value = ''; });
+        });
+        ['min','max'].forEach(b => { const el = document.getElementById(`filter-total-${b}`); if (el) el.value = ''; });
+        statFilters = {};
+        updateFilterBadge();
+        applyFilters();
+    });
+}
+
+function readStatFilters() {
+    statFilters = {};
+    STAT_FILTER_MAP.forEach(sf => {
+        const minEl = document.getElementById(`filter-${sf.id}-min`);
+        const maxEl = document.getElementById(`filter-${sf.id}-max`);
+        const min = minEl && minEl.value !== '' ? parseInt(minEl.value) : null;
+        const max = maxEl && maxEl.value !== '' ? parseInt(maxEl.value) : null;
+        if (min !== null || max !== null) statFilters[sf.key] = { min, max };
+    });
+    const tMin = document.getElementById('filter-total-min');
+    const tMax = document.getElementById('filter-total-max');
+    const totalMin = tMin && tMin.value !== '' ? parseInt(tMin.value) : null;
+    const totalMax = tMax && tMax.value !== '' ? parseInt(tMax.value) : null;
+    if (totalMin !== null || totalMax !== null) statFilters['total'] = { min: totalMin, max: totalMax };
 }
 
 function updateFilterBadge() {
     const btn = document.getElementById('filter-toggle');
-    const count = activeTypeFilters.size + activeGenFilters.size;
+    const statCount = Object.keys(statFilters).length;
+    const count = activeTypeFilters.size + activeGenFilters.size + statCount;
     let badge = btn.querySelector('.filter-badge');
     if (count > 0) {
         if (!badge) { badge = document.createElement('span'); badge.className = 'filter-badge'; btn.appendChild(badge); }
@@ -235,6 +287,15 @@ function applyFilters() {
             const range = GEN_RANGES[gi];
             return p.id >= range.min && p.id <= range.max;
         }));
+    }
+    // Stat filters
+    for (const [key, range] of Object.entries(statFilters)) {
+        list = list.filter(p => {
+            const val = key === 'total' ? (p.totalStats || 0) : (p.stats ? (p.stats[key] || 0) : 0);
+            if (range.min !== null && val < range.min) return false;
+            if (range.max !== null && val > range.max) return false;
+            return true;
+        });
     }
     if (searchQ.length >= 1) {
         list = list.filter(p =>
@@ -462,6 +523,58 @@ function renderPokemonDetail(p, species, evolution, smogon) {
         <div class="stat-total">Total: <span class="stat-total-value">${p.totalStats}</span></div>
     </div>`;
 
+    // Nature/EV/IV Calculator
+    html += `<div class="card">
+        <h3 class="section-title" style="color:var(--blue)">Calculadora de Stats</h3>
+        <div class="calc-controls">
+            <div class="calc-row">
+                <label>Nivel</label>
+                <select id="calc-level"><option value="50">50</option><option value="100" selected>100</option></select>
+            </div>
+            <div class="calc-row">
+                <label>Naturaleza</label>
+                <select id="calc-nature">
+                    <option value="neutral">Neutral</option>
+                    <option value="attack,defense">Firme (+Atq/-Def)</option>
+                    <option value="attack,special-attack">Huraña (+Atq/-AtEsp)</option>
+                    <option value="attack,special-defense">Traviesa (+Atq/-DefEsp)</option>
+                    <option value="attack,speed">Brava (+Atq/-Vel)</option>
+                    <option value="defense,attack">Osada (+Def/-Atq)</option>
+                    <option value="defense,special-attack">Agitada (+Def/-AtEsp)</option>
+                    <option value="defense,special-defense">Floja (+Def/-DefEsp)</option>
+                    <option value="defense,speed">Plácida (+Def/-Vel)</option>
+                    <option value="special-attack,attack">Modesta (+AtEsp/-Atq)</option>
+                    <option value="special-attack,defense">Afable (+AtEsp/-Def)</option>
+                    <option value="special-attack,special-defense">Mansa (+AtEsp/-DefEsp)</option>
+                    <option value="special-attack,speed">Alocada (+AtEsp/-Vel)</option>
+                    <option value="special-defense,attack">Serena (+DefEsp/-Atq)</option>
+                    <option value="special-defense,defense">Amable (+DefEsp/-Def)</option>
+                    <option value="special-defense,special-defense">Cauta (+DefEsp/-AtEsp)</option>
+                    <option value="special-defense,speed">Grosera (+DefEsp/-Vel)</option>
+                    <option value="speed,attack">Miedosa (+Vel/-Atq)</option>
+                    <option value="speed,defense">Alegre (+Vel/-Def)</option>
+                    <option value="speed,special-attack">Ingenua (+Vel/-AtEsp)</option>
+                    <option value="speed,special-defense">Activa (+Vel/-DefEsp)</option>
+                </select>
+            </div>
+        </div>
+        <table class="calc-table">
+            <thead><tr><th>Stat</th><th>Base</th><th>IV</th><th>EV</th><th>Final</th></tr></thead>
+            <tbody>
+                ${renderCalcRow('PS', 'hp', stats.hp)}
+                ${renderCalcRow('Ataque', 'attack', stats.attack)}
+                ${renderCalcRow('Defensa', 'defense', stats.defense)}
+                ${renderCalcRow('At. Esp.', 'special-attack', stats['special-attack'])}
+                ${renderCalcRow('Def. Esp.', 'special-defense', stats['special-defense'])}
+                ${renderCalcRow('Velocidad', 'speed', stats.speed)}
+            </tbody>
+        </table>
+        <div class="calc-total" id="calc-total"></div>
+    </div>`;
+
+    // Inject calculator JS after rendering
+    setTimeout(() => setupStatCalculator(stats), 0);
+
     // Abilities
     if (p.abilities && p.abilities.length > 0) {
         html += `<div class="card">
@@ -583,6 +696,57 @@ function renderStatRow(name, value) {
     const color = STAT_COLORS[name] || '#818cf8';
     return `<span class="stat-name">${name}</span><span class="stat-value" style="color:${color}">${value}</span>
         <div class="stat-bar-bg"><div class="stat-bar" style="width:${pct}%;background:${color}"></div></div>`;
+}
+
+function renderCalcRow(label, key, base) {
+    return `<tr>
+        <td class="calc-label">${label}</td>
+        <td class="calc-base">${base}</td>
+        <td><input type="number" class="calc-iv" data-stat="${key}" value="31" min="0" max="31"></td>
+        <td><input type="number" class="calc-ev" data-stat="${key}" value="0" min="0" max="252" step="4"></td>
+        <td class="calc-result" id="calc-${key}">—</td>
+    </tr>`;
+}
+
+function setupStatCalculator(baseStats) {
+    const recalc = () => {
+        const level = parseInt(document.getElementById('calc-level').value);
+        const natureVal = document.getElementById('calc-nature').value;
+        let plus = null, minus = null;
+        if (natureVal !== 'neutral') {
+            const parts = natureVal.split(',');
+            plus = parts[0]; minus = parts[1];
+        }
+        let total = 0;
+        ['hp','attack','defense','special-attack','special-defense','speed'].forEach(stat => {
+            const base = baseStats[stat] || 0;
+            const iv = parseInt(document.querySelector(`.calc-iv[data-stat="${stat}"]`).value) || 0;
+            const ev = parseInt(document.querySelector(`.calc-ev[data-stat="${stat}"]`).value) || 0;
+            let final;
+            if (stat === 'hp') {
+                if (base === 1) final = 1; // Shedinja
+                else final = Math.floor(((2 * base + iv + Math.floor(ev / 4)) * level) / 100) + level + 10;
+            } else {
+                let natureMod = 1;
+                if (plus === stat) natureMod = 1.1;
+                else if (minus === stat) natureMod = 0.9;
+                final = Math.floor((Math.floor(((2 * base + iv + Math.floor(ev / 4)) * level) / 100) + 5) * natureMod);
+            }
+            total += final;
+            const cell = document.getElementById('calc-' + stat);
+            if (cell) {
+                cell.textContent = final;
+                // Color hint for nature
+                cell.style.color = plus === stat ? '#16a34a' : minus === stat ? '#dc2626' : '';
+            }
+        });
+        const totalEl = document.getElementById('calc-total');
+        if (totalEl) totalEl.textContent = 'Total: ' + total;
+    };
+    document.getElementById('calc-level')?.addEventListener('change', recalc);
+    document.getElementById('calc-nature')?.addEventListener('change', recalc);
+    document.querySelectorAll('.calc-iv, .calc-ev').forEach(el => el.addEventListener('input', recalc));
+    recalc();
 }
 
 function renderSpeciesInfo(species, p) {

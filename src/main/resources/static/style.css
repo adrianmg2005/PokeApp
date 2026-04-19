@@ -1172,6 +1172,148 @@ button:focus:not(:focus-visible) { outline: none; }
 .compare-verdict { width: 100%; }
 
 /* ════════════════════════════════════════════
+   COMPARADOR AVANZADO — RADAR + STAB + SPEED
+   ════════════════════════════════════════════ */
+.compare-radar-card { text-align: center; }
+.compare-stab-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+}
+.stab-col { text-align: center; }
+.stab-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; margin-bottom: 8px;
+}
+.stab-mult { font-size: 16px; min-width: 32px; }
+.speed-tier-bars { display: flex; flex-direction: column; gap: 10px; }
+.speed-tier-row {
+    display: flex; align-items: center; gap: 12px;
+}
+.speed-tier-row.dimmed { opacity: 0.6; }
+.speed-label {
+    width: 160px; text-align: right; font-size: 12px; font-weight: 600;
+    color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.speed-label small { font-weight: 400; color: var(--text-dim); }
+.speed-bar-bg {
+    flex: 1; height: 14px; background: #f1f3f5; border-radius: 7px; overflow: hidden;
+}
+.speed-bar {
+    height: 100%; border-radius: 7px; transition: width 0.8s var(--ease);
+}
+.speed-val {
+    width: 40px; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums;
+    color: var(--text);
+}
+
+/* ════════════════════════════════════════════
+   TIER LIST
+   ════════════════════════════════════════════ */
+.tierlist-container {
+    padding: 44px 36px; overflow-y: auto; height: 100%;
+    max-width: 1400px; margin: 0 auto; width: 100%;
+}
+.tierlist-hero { text-align: center; margin-bottom: 28px; }
+.tierlist-title {
+    font-size: 32px; font-weight: 900; letter-spacing: -1.3px;
+    color: var(--text); display: flex; align-items: center;
+    justify-content: center; gap: 10px;
+}
+.tierlist-subtitle { color: var(--text-dim); font-size: 14px; margin-top: 6px; }
+.tierlist-controls {
+    display: flex; flex-direction: column; gap: 12px;
+    align-items: center; margin-bottom: 20px;
+}
+.tierlist-gen-selector, .tierlist-tier-selector {
+    display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+}
+.tierlist-gen-btn {
+    padding: 7px 16px; border: 1px solid var(--border);
+    border-radius: var(--radius-pill); background: var(--bg-card);
+    font-size: 12px; font-weight: 600; color: var(--text-secondary);
+    cursor: pointer; transition: all 0.2s var(--ease);
+}
+.tierlist-gen-btn:hover { border-color: var(--border-strong); background: var(--bg-hover-strong); }
+.tierlist-gen-btn.active {
+    background: var(--nav-bg); color: #fff; border-color: var(--nav-bg);
+}
+.tierlist-tier-btn {
+    padding: 8px 18px; border: 2px solid var(--tier-color, #6b7280);
+    border-radius: var(--radius-pill); background: var(--bg-card);
+    font-size: 13px; font-weight: 700; color: var(--tier-color, #6b7280);
+    cursor: pointer; transition: all 0.2s var(--ease);
+}
+.tierlist-tier-btn:hover { background: color-mix(in srgb, var(--tier-color) 10%, white); }
+.tierlist-tier-btn.active {
+    background: var(--tier-color, #6b7280); color: #fff;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--tier-color) 30%, transparent);
+}
+.tierlist-tier-btn small { font-weight: 500; opacity: 0.8; }
+.tierlist-count {
+    text-align: center; font-size: 14px; font-weight: 600;
+    color: var(--text-secondary); margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.tierlist-count-badge {
+    display: inline-flex; padding: 3px 10px; border-radius: var(--radius-pill);
+    color: #fff; font-size: 11px; font-weight: 700;
+}
+.tierlist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+}
+.tierlist-card {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 14px;
+    cursor: pointer; transition: all 0.2s var(--ease);
+}
+.tierlist-card:hover {
+    border-color: var(--border-strong); box-shadow: var(--shadow-sm);
+    transform: translateY(-2px);
+}
+.tierlist-card img {
+    width: 52px; height: 52px; image-rendering: pixelated; flex-shrink: 0;
+}
+.tierlist-card-info { flex: 1; min-width: 0; }
+.tierlist-card-name {
+    font-size: 14px; font-weight: 700; color: var(--text);
+    display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tierlist-card-types { display: flex; gap: 4px; margin-top: 3px; }
+.tierlist-card-stats {
+    font-size: 11px; color: var(--text-dim); font-weight: 500; margin-top: 2px;
+    display: block;
+}
+/* Tier detail overlay */
+.tierlist-detail-overlay {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.25s var(--ease);
+}
+.tierlist-detail-overlay.visible { opacity: 1; }
+.tierlist-detail-panel {
+    background: var(--bg-white); border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg); padding: 28px 24px;
+    max-width: 560px; width: 90%; max-height: 85vh; overflow-y: auto;
+    position: relative;
+    transform: scale(0.95) translateY(10px);
+    transition: transform 0.3s var(--ease-spring);
+}
+.tierlist-detail-overlay.visible .tierlist-detail-panel {
+    transform: scale(1) translateY(0);
+}
+.tierlist-detail-header {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 20px;
+}
+.tierlist-detail-sprite {
+    width: 100px; height: 100px; object-fit: contain;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.10));
+}
+.tierlist-sets { display: flex; flex-direction: column; gap: 10px; }
+
+/* ════════════════════════════════════════════
    MOVE DETAIL
    ════════════════════════════════════════════ */
 .move-header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -1910,6 +2052,11 @@ button:focus:not(:focus-visible) { outline: none; }
     .compare-panel img { width: 130px; height: 130px; }
     .compare-title { font-size: 24px; }
     .kbd-hint { display: none; }
+    .compare-stab-grid { grid-template-columns: 1fr; gap: 12px; }
+    .speed-label { width: 120px; font-size: 11px; }
+    .tierlist-container { padding: 24px 16px; }
+    .tierlist-title { font-size: 24px; }
+    .tierlist-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 }
 
 @media (max-width: 768px) {
@@ -1956,6 +2103,13 @@ button:focus:not(:focus-visible) { outline: none; }
     .compare-title { font-size: 20px; }
     .compare-subtitle { font-size: 13px; }
     .filter-chip { padding: 3px 7px; font-size: 9px; }
+    .tierlist-container { padding: 16px 10px; }
+    .tierlist-grid { grid-template-columns: 1fr; }
+    .tierlist-title { font-size: 20px; }
+    .tierlist-tier-btn { padding: 6px 12px; font-size: 11px; }
+    .tierlist-gen-btn { padding: 5px 10px; font-size: 11px; }
+    .speed-label { width: 90px; font-size: 10px; }
+    .compare-stab-grid { grid-template-columns: 1fr; }
 }
 
 /* ════════════════════════════════════════════

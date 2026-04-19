@@ -50,6 +50,9 @@ let allMoves = [];
 let allAbilities = [];
 let allItems = [];
 let championsTeams = [];
+let tierListData = null;
+let tierListCurrentGen = 'gen9';
+let tierListCurrentTier = 'ou';
 let typesData = {};
 
 // Persistent state
@@ -174,6 +177,7 @@ function setupTabs() {
             if (tab === 'habilidades' && allAbilities.length === 0) loadAbilitiesList();
             if (tab === 'objetos' && allItems.length === 0) loadItemsList();
             if (tab === 'champions' && championsTeams.length === 0) loadChampionsTeams();
+            if (tab === 'tierlist' && !tierListData) loadTierList('gen9');
         });
     });
 }
@@ -954,7 +958,182 @@ function renderComparison(a, b) {
         </div></div>`;
     }
 
+    // Radar chart
+    html += `<div class="card compare-radar-card"><h3 class="section-title">Gráfico Radar</h3><canvas id="radar-chart" style="width:100%;height:360px;max-width:480px;margin:0 auto;display:block"></canvas></div>`;
+
+    // STAB effectiveness
+    if (a.typeMatchup && b.typeMatchup && a.types && b.types) {
+        html += renderStabAnalysis(a, b);
+    }
+
+    // Speed tier
+    html += renderSpeedTier(a, b);
+
     result.innerHTML = html;
+
+    // Draw radar chart
+    setTimeout(() => drawRadarChart('radar-chart', a, b), 0);
+}
+
+function renderStabAnalysis(a, b) {
+    let html = `<div class="compare-verdict card"><h3 class="section-title">Efectividad STAB</h3><div class="compare-stab-grid">`;
+    // A attacking B
+    html += `<div class="stab-col"><h4 style="color:var(--red);font-weight:700;margin-bottom:8px">${esc(a.spanishName)} → ${esc(b.spanishName)}</h4>`;
+    a.types.forEach((type, i) => {
+        const mult = getStabMultiplier(type, b.typeMatchup);
+        const color = mult >= 2 ? '#16a34a' : mult > 1 ? '#22c55e' : mult === 1 ? 'var(--text-secondary)' : mult > 0 ? '#dc2626' : '#6b7280';
+        const label = mult === 0 ? 'Inmune' : mult >= 4 ? '×4' : mult >= 2 ? '×2' : mult === 1 ? '×1' : mult >= 0.5 ? '×½' : '×¼';
+        html += `<div class="stab-row"><span class="type-badge" style="background:${TYPE_COLORS[type]};font-size:11px;padding:3px 10px">${esc(a.typesSpanish[i])}</span><span class="stab-mult" style="color:${color};font-weight:800">${label}</span></div>`;
+    });
+    html += `</div>`;
+    // B attacking A
+    html += `<div class="stab-col"><h4 style="color:var(--blue);font-weight:700;margin-bottom:8px">${esc(b.spanishName)} → ${esc(a.spanishName)}</h4>`;
+    b.types.forEach((type, i) => {
+        const mult = getStabMultiplier(type, a.typeMatchup);
+        const color = mult >= 2 ? '#16a34a' : mult > 1 ? '#22c55e' : mult === 1 ? 'var(--text-secondary)' : mult > 0 ? '#dc2626' : '#6b7280';
+        const label = mult === 0 ? 'Inmune' : mult >= 4 ? '×4' : mult >= 2 ? '×2' : mult === 1 ? '×1' : mult >= 0.5 ? '×½' : '×¼';
+        html += `<div class="stab-row"><span class="type-badge" style="background:${TYPE_COLORS[type]};font-size:11px;padding:3px 10px">${esc(b.typesSpanish[i])}</span><span class="stab-mult" style="color:${color};font-weight:800">${label}</span></div>`;
+    });
+    html += `</div></div></div>`;
+    return html;
+}
+
+function getStabMultiplier(attackType, defenderMatchup) {
+    if (!defenderMatchup) return 1;
+    const immune = (defenderMatchup.immune || []).find(t => t.type === attackType);
+    if (immune) return 0;
+    const weak = (defenderMatchup.weak || []).find(t => t.type === attackType);
+    if (weak) return weak.multiplier;
+    const resist = (defenderMatchup.resist || []).find(t => t.type === attackType);
+    if (resist) return resist.multiplier;
+    return 1;
+}
+
+function renderSpeedTier(a, b) {
+    const maxSpeed = Math.max(a.stats.speed, b.stats.speed, 200);
+    const scarfA = Math.floor(a.stats.speed * 1.5);
+    const scarfB = Math.floor(b.stats.speed * 1.5);
+    const faster = a.stats.speed > b.stats.speed ? a : b.stats.speed > a.stats.speed ? b : null;
+
+    let html = `<div class="compare-verdict card"><h3 class="section-title">Speed Tier</h3>`;
+    html += `<div class="speed-tier-bars">`;
+
+    // A base
+    html += `<div class="speed-tier-row"><span class="speed-label">${esc(a.spanishName)}</span><div class="speed-bar-bg"><div class="speed-bar" style="width:${(a.stats.speed/maxSpeed*100).toFixed(1)}%;background:var(--red)"></div></div><span class="speed-val">${a.stats.speed}</span></div>`;
+    // B base
+    html += `<div class="speed-tier-row"><span class="speed-label">${esc(b.spanishName)}</span><div class="speed-bar-bg"><div class="speed-bar" style="width:${(b.stats.speed/maxSpeed*100).toFixed(1)}%;background:var(--blue)"></div></div><span class="speed-val">${b.stats.speed}</span></div>`;
+    // A scarf
+    html += `<div class="speed-tier-row dimmed"><span class="speed-label">${esc(a.spanishName)} <small>(Scarf)</small></span><div class="speed-bar-bg"><div class="speed-bar" style="width:${Math.min(scarfA/maxSpeed*100,100).toFixed(1)}%;background:var(--red-soft);opacity:0.6"></div></div><span class="speed-val">${scarfA}</span></div>`;
+    // B scarf
+    html += `<div class="speed-tier-row dimmed"><span class="speed-label">${esc(b.spanishName)} <small>(Scarf)</small></span><div class="speed-bar-bg"><div class="speed-bar" style="width:${Math.min(scarfB/maxSpeed*100,100).toFixed(1)}%;background:var(--blue-soft);opacity:0.6"></div></div><span class="speed-val">${scarfB}</span></div>`;
+    html += `</div>`;
+
+    if (faster) {
+        html += `<p style="margin-top:12px;text-align:center;font-weight:700;color:${faster===a?'var(--red)':'var(--blue)'}">${esc(faster.spanishName)} es más rápido (${faster.stats.speed} vs ${(faster===a?b:a).stats.speed})</p>`;
+    } else {
+        html += `<p style="margin-top:12px;text-align:center;font-weight:700;color:var(--gold)">Misma velocidad base — depende de naturaleza/EVs</p>`;
+    }
+    html += `</div>`;
+    return html;
+}
+
+function drawRadarChart(canvasId, a, b) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const w = rect.width, h = rect.height;
+    const cx = w / 2, cy = h / 2;
+    const radius = Math.min(cx, cy) - 44;
+    const statKeys = ['hp','attack','defense','special-attack','special-defense','speed'];
+    const labels = ['PS','Ataque','Defensa','At.Esp.','Def.Esp.','Velocidad'];
+    const n = 6;
+    const maxStat = 255;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Background rings
+    for (let level = 1; level <= 5; level++) {
+        ctx.beginPath();
+        for (let i = 0; i <= n; i++) {
+            const angle = (Math.PI * 2 * (i % n) / n) - Math.PI / 2;
+            const x = cx + radius * (level / 5) * Math.cos(angle);
+            const y = cy + radius * (level / 5) * Math.sin(angle);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = level === 5 ? '#d1d5db' : '#eff0f2';
+        ctx.lineWidth = level === 5 ? 1.5 : 0.7;
+        ctx.stroke();
+    }
+
+    // Axes + labels
+    for (let i = 0; i < n; i++) {
+        const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + radius * Math.cos(angle), cy + radius * Math.sin(angle));
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 0.7;
+        ctx.stroke();
+        const lr = radius + 22;
+        const lx = cx + lr * Math.cos(angle);
+        const ly = cy + lr * Math.sin(angle);
+        ctx.fillStyle = '#4b5563';
+        ctx.font = '600 11px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(labels[i], lx, ly);
+    }
+
+    // Pokémon A polygon
+    drawStatPoly(ctx, cx, cy, radius, a.stats, statKeys, n, maxStat, 'rgba(227,53,13,0.15)', 'rgba(227,53,13,0.85)', 2.5);
+    // Pokémon B polygon
+    drawStatPoly(ctx, cx, cy, radius, b.stats, statKeys, n, maxStat, 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.85)', 2.5);
+
+    // Legend
+    ctx.fillStyle = 'rgba(227,53,13,0.9)';
+    ctx.fillRect(12, h - 26, 12, 12);
+    ctx.fillStyle = '#4b5563';
+    ctx.font = '600 11px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(a.spanishName, 28, h - 20);
+    const nameAW = ctx.measureText(a.spanishName).width;
+    ctx.fillStyle = 'rgba(59,130,246,0.9)';
+    ctx.fillRect(38 + nameAW, h - 26, 12, 12);
+    ctx.fillStyle = '#4b5563';
+    ctx.fillText(b.spanishName, 54 + nameAW, h - 20);
+}
+
+function drawStatPoly(ctx, cx, cy, r, stats, keys, n, max, fill, stroke, lw) {
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+        const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+        const val = Math.min((stats[keys[i]] || 0) / max, 1);
+        const x = cx + r * val * Math.cos(angle);
+        const y = cy + r * val * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lw;
+    ctx.stroke();
+    for (let i = 0; i < n; i++) {
+        const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+        const val = Math.min((stats[keys[i]] || 0) / max, 1);
+        ctx.beginPath();
+        ctx.arc(cx + r * val * Math.cos(angle), cy + r * val * Math.sin(angle), 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = stroke;
+        ctx.fill();
+    }
 }
 
 // ═══════════════════════════════════════════
@@ -1476,6 +1655,159 @@ document.addEventListener('keydown', e => {
 });
 
 // ═══════════════════════════════════════════
+//  TIER LIST COMPETITIVA
+// ═══════════════════════════════════════════
+
+const TIER_COLORS = {
+    ubers:'#dc2626', ou:'#ea580c', uu:'#d97706', ru:'#65a30d',
+    nu:'#059669', pu:'#0891b2', zu:'#6366f1', lc:'#a855f7'
+};
+
+async function loadTierList(gen) {
+    tierListCurrentGen = gen || 'gen9';
+    const grid = document.getElementById('tierlist-grid');
+    grid.innerHTML = '<div class="empty-state"><div class="pokeball-spinner"></div><p>Cargando tiers...</p></div>';
+
+    try {
+        const res = await fetch(API + '/api/tiers/' + tierListCurrentGen);
+        tierListData = await res.json();
+        if (tierListData.error) {
+            grid.innerHTML = `<div class="empty-state"><p>${esc(tierListData.error)}</p></div>`;
+            return;
+        }
+        renderTierListControls();
+        renderTierListGrid();
+    } catch (e) {
+        grid.innerHTML = '<div class="empty-state"><p>Error al cargar los tiers</p></div>';
+    }
+}
+
+function renderTierListControls() {
+    const genSelector = document.getElementById('tierlist-gen-selector');
+    const gens = ['gen3','gen4','gen5','gen6','gen7','gen8','gen9'];
+    genSelector.innerHTML = gens.map(g =>
+        `<button class="tierlist-gen-btn ${g===tierListCurrentGen?'active':''}" data-gen="${g}">${g.replace('gen','Gen ')}</button>`
+    ).join('');
+    genSelector.querySelectorAll('.tierlist-gen-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            genSelector.querySelectorAll('.tierlist-gen-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadTierList(btn.dataset.gen);
+        });
+    });
+
+    const tierSelector = document.getElementById('tierlist-tier-selector');
+    if (!tierListData || !tierListData.tiers) return;
+    tierSelector.innerHTML = tierListData.tiers.map(t =>
+        `<button class="tierlist-tier-btn ${t.tier===tierListCurrentTier?'active':''}" data-tier="${t.tier}" style="--tier-color:${TIER_COLORS[t.tier]||'#6b7280'}">${esc(t.label)} <small>(${t.count})</small></button>`
+    ).join('');
+    // If current tier not available, pick the first
+    if (!tierListData.tiers.find(t => t.tier === tierListCurrentTier)) {
+        tierListCurrentTier = tierListData.tiers[0]?.tier || 'ou';
+        tierSelector.querySelector('.tierlist-tier-btn')?.classList.add('active');
+    }
+    tierSelector.querySelectorAll('.tierlist-tier-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            tierSelector.querySelectorAll('.tierlist-tier-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            tierListCurrentTier = btn.dataset.tier;
+            renderTierListGrid();
+        });
+    });
+}
+
+function renderTierListGrid() {
+    const grid = document.getElementById('tierlist-grid');
+    const countEl = document.getElementById('tierlist-count');
+    if (!tierListData || !tierListData.tiers) {
+        grid.innerHTML = '<div class="empty-state"><p>No hay datos disponibles</p></div>';
+        return;
+    }
+    const tier = tierListData.tiers.find(t => t.tier === tierListCurrentTier);
+    if (!tier || !tier.pokemon || tier.pokemon.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><p>No hay Pokémon en este tier</p></div>';
+        countEl.textContent = '';
+        return;
+    }
+    countEl.innerHTML = `<span class="tierlist-count-badge" style="background:${TIER_COLORS[tier.tier]||'#6b7280'}">${tier.label}</span> ${tier.count} Pokémon`;
+
+    grid.innerHTML = tier.pokemon.filter(p => p.id > 0).map(p => {
+        const sprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
+        return `<div class="tierlist-card" onclick="showTierPokemonDetail('${esc(p.smogonName)}')">
+            <img src="${sprite}" alt="${esc(p.spanishName)}" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png'">
+            <div class="tierlist-card-info">
+                <span class="tierlist-card-name">${esc(p.spanishName)}</span>
+                <div class="tierlist-card-types">${(p.types||[]).map(t => `<span class="type-badge" style="background:${TYPE_COLORS[t]||'#777'};font-size:9px;padding:2px 6px">${(TYPE_NAMES_ES[t]||t).slice(0,3).toUpperCase()}</span>`).join('')}</div>
+                <span class="tierlist-card-stats">${p.totalStats} BST · ${p.setsCount} set${p.setsCount!==1?'s':''}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function showTierPokemonDetail(smogonName) {
+    const overlay = document.getElementById('tierlist-detail-overlay');
+    const panel = document.getElementById('tierlist-detail-panel');
+    panel.innerHTML = '<div class="empty-state"><div class="pokeball-spinner"></div></div>';
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => overlay.classList.add('visible'));
+
+    try {
+        const res = await fetch(API + '/api/tiers/' + tierListCurrentGen + '/' + tierListCurrentTier + '/' + encodeURIComponent(smogonName));
+        const data = await res.json();
+        if (data.error) {
+            panel.innerHTML = `<div class="empty-state"><p>${esc(data.error)}</p></div>`;
+            return;
+        }
+
+        // Find Pokémon basic info
+        const tier = tierListData.tiers.find(t => t.tier === tierListCurrentTier);
+        const poke = tier?.pokemon?.find(p => p.smogonName === smogonName);
+        const pokeid = poke?.id || 0;
+        const sprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokeid}.png`;
+
+        let html = `<button class="champ-detail-close" onclick="closeTierDetail()">&times;</button>`;
+        html += `<div class="tierlist-detail-header">`;
+        html += `<img src="${sprite}" alt="" class="tierlist-detail-sprite" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokeid}.png'">`;
+        html += `<div><h2 style="font-size:24px;font-weight:800;color:var(--text)">${esc(poke?.spanishName || smogonName)}</h2>`;
+        html += `<div style="display:flex;gap:6px;margin-top:6px">${(poke?.types||[]).map(t => `<span class="type-badge" style="background:${TYPE_COLORS[t]}">${TYPE_NAMES_ES[t]||t}</span>`).join('')}</div>`;
+        html += `<p style="color:var(--text-dim);font-size:12px;margin-top:4px">${poke?.totalStats || 0} BST · ${tierListCurrentTier.toUpperCase()} · ${tierListCurrentGen.replace('gen','Gen ')}</p>`;
+        html += `</div></div>`;
+
+        // Render sets
+        html += `<div class="tierlist-sets">`;
+        for (const set of data.sets) {
+            html += renderSingleSet(set, true);
+        }
+        html += `</div>`;
+
+        // Button to view in Pokédex
+        if (poke?.name) {
+            html += `<button class="btn-primary" style="margin-top:16px;width:100%" onclick="closeTierDetail(); switchToPokedex('${esc(poke.name)}')">Ver en Pokédex</button>`;
+        }
+
+        panel.innerHTML = html;
+    } catch {
+        panel.innerHTML = '<div class="empty-state"><p>Error al cargar sets</p></div>';
+    }
+}
+
+function closeTierDetail() {
+    const overlay = document.getElementById('tierlist-detail-overlay');
+    overlay.classList.remove('visible');
+    setTimeout(() => overlay.style.display = 'none', 250);
+}
+
+// Close tier detail on overlay click or Escape
+document.addEventListener('click', e => {
+    if (e.target.id === 'tierlist-detail-overlay') closeTierDetail();
+});
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('tierlist-detail-overlay')?.classList.contains('visible')) {
+        closeTierDetail();
+    }
+});
+
+// ═══════════════════════════════════════════
 //  TOAST NOTIFICATIONS
 // ═══════════════════════════════════════════
 
@@ -1523,7 +1855,7 @@ document.addEventListener('keydown', e => {
     }
     // 1-5 — Quick tab switch (only when not focused on an input)
     if (!e.ctrlKey && !e.metaKey && !e.altKey && document.activeElement.tagName !== 'INPUT') {
-        const tabKeys = {'1':'pokedex','2':'comparador','3':'movimientos','4':'habilidades','5':'objetos','6':'champions'};
+        const tabKeys = {'1':'pokedex','2':'comparador','3':'movimientos','4':'habilidades','5':'objetos','6':'champions','7':'tierlist'};
         if (tabKeys[e.key]) {
             e.preventDefault();
             const btn = document.querySelector(`[data-tab="${tabKeys[e.key]}"]`);

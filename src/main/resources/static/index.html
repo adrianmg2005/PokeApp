@@ -65,6 +65,10 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 010-5C7 4 7 7 7 7"/><path d="M18 9h1.5a2.5 2.5 0 000-5C17 4 17 7 17 7"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/></svg>
                     <span>Champions</span>
                 </button>
+                <button class="nav-btn" data-tab="tierlist" title="Tier List">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                    <span>Tier List</span>
+                </button>
             </div>
         </nav>
 
@@ -288,6 +292,30 @@
                     <!-- Team detail modal/panel -->
                     <div class="champions-detail-overlay" id="champions-detail-overlay" style="display:none">
                         <div class="champions-detail-panel" id="champions-detail-panel"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════ TAB: TIER LIST ═══════════ -->
+            <div id="tab-tierlist" class="tab-content">
+                <div class="tierlist-container">
+                    <div class="tierlist-hero">
+                        <h2 class="tierlist-title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                            Tier List Competitiva
+                        </h2>
+                        <p class="tierlist-subtitle">Pokémon organizados por tier según datos de Smogon</p>
+                    </div>
+                    <div class="tierlist-controls">
+                        <div class="tierlist-gen-selector" id="tierlist-gen-selector"></div>
+                        <div class="tierlist-tier-selector" id="tierlist-tier-selector"></div>
+                    </div>
+                    <div class="tierlist-count" id="tierlist-count"></div>
+                    <div class="tierlist-grid" id="tierlist-grid">
+                        <div class="empty-state"><p>Selecciona una generación y tier</p></div>
+                    </div>
+                    <div class="tierlist-detail-overlay" id="tierlist-detail-overlay" style="display:none">
+                        <div class="tierlist-detail-panel" id="tierlist-detail-panel"></div>
                     </div>
                 </div>
             </div>

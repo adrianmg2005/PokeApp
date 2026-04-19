@@ -34,9 +34,15 @@ public class SmogonService {
     private final Map<String, String> apiToSmogonName = new ConcurrentHashMap<>();
     private boolean loaded = false;
 
+    // Tier list data: gen -> tier -> smogonName(lc) -> List<SmogonSet>
+    private static final String[] TIERS = {"ubers", "ou", "uu", "ru", "nu", "pu", "zu", "lc"};
+    private final Map<String, Map<String, Map<String, List<SmogonSet>>>> tierDataCache = new ConcurrentHashMap<>();
+    private final Set<String> loadedTierGens = ConcurrentHashMap.newKeySet();
+
     @PostConstruct
     public void init() {
         loadSmogonData().join();
+        loadTierDataForGen("gen9").join();
     }
 
     public boolean isLoaded() {
@@ -246,6 +252,128 @@ public class SmogonService {
      */
     public Set<String> getAllOUPokemon() {
         return Collections.unmodifiableSet(setsCache.keySet());
+    }
+
+    // ── Tier List Data Loading ──
+
+    public CompletableFuture<Void> loadTierDataForGen(String gen) {
+        return CompletableFuture.runAsync(() -> {
+            if (loadedTierGens.contains(gen)) return;
+            try {
+                Files.createDirectories(cacheDir);
+                for (String tier : TIERS) {
+                    try {
+                        String cacheFileName = "smogon_" + gen + "_" + tier + ".json";
+                        Path cacheFile = cacheDir.resolve(cacheFileName);
+                        String json;
+                        if (Files.exists(cacheFile) &&
+                                System.currentTimeMillis() - Files.getLastModifiedTime(cacheFile).toMillis() < 86_400_000L) {
+                            json = Files.readString(cacheFile);
+                        } else {
+                            String url = BASE_URL + gen + tier + ".json";
+                            HttpRequest request = HttpRequest.newBuilder()
+                                    .uri(URI.create(url))
+                                    .GET().build();
+                            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                            if (response.statusCode() != 200) continue;
+                            json = response.body();
+                            Files.writeString(cacheFile, json);
+                        }
+                        parseTierDataJson(json, gen, tier);
+                    } catch (Exception e) {
+                        // Skip failed tiers
+                    }
+                }
+                loadedTierGens.add(gen);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private void parseTierDataJson(String json, String gen, String tier) {
+        JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+        Map<String, List<SmogonSet>> pokemonMap = new ConcurrentHashMap<>();
+        for (String pokemonName : root.keySet()) {
+            JsonObject setsObj = root.getAsJsonObject(pokemonName);
+            List<SmogonSet> sets = new ArrayList<>();
+            for (String setName : setsObj.keySet()) {
+                JsonObject setObj = setsObj.getAsJsonObject(setName);
+                SmogonSet set = new SmogonSet();
+                set.pokemonName = pokemonName;
+                set.setName = setName;
+                set.generation = gen;
+                set.level = setObj.has("level") ? setObj.get("level").getAsInt() : 100;
+                set.moves = new ArrayList<>();
+                if (setObj.has("moves") && setObj.get("moves").isJsonArray()) {
+                    for (JsonElement slotEl : setObj.getAsJsonArray("moves")) {
+                        List<String> alternatives = new ArrayList<>();
+                        if (slotEl.isJsonArray()) {
+                            for (JsonElement moveEl : slotEl.getAsJsonArray()) {
+                                alternatives.add(moveEl.getAsString());
+                            }
+                        } else {
+                            alternatives.add(slotEl.getAsString());
+                        }
+                        set.moves.add(alternatives);
+                    }
+                }
+                set.ability = parseStringOrArray(setObj, "ability");
+                set.item = parseStringOrArray(setObj, "item");
+                set.nature = parseStringOrArray(setObj, "nature");
+                set.teratypes = parseStringOrArray(setObj, "teratypes");
+                if (setObj.has("evs") && setObj.get("evs").isJsonObject()) {
+                    set.evs = new LinkedHashMap<>();
+                    JsonObject evsObj = setObj.getAsJsonObject("evs");
+                    for (String stat : evsObj.keySet()) {
+                        set.evs.put(stat, evsObj.get(stat).getAsInt());
+                    }
+                }
+                if (setObj.has("ivs") && setObj.get("ivs").isJsonObject()) {
+                    set.ivs = new LinkedHashMap<>();
+                    JsonObject ivsObj = setObj.getAsJsonObject("ivs");
+                    for (String stat : ivsObj.keySet()) {
+                        set.ivs.put(stat, ivsObj.get(stat).getAsInt());
+                    }
+                }
+                sets.add(set);
+            }
+            pokemonMap.put(pokemonName.toLowerCase().trim(), sets);
+        }
+        tierDataCache.computeIfAbsent(gen, k -> new ConcurrentHashMap<>()).put(tier, pokemonMap);
+    }
+
+    public Map<String, Map<String, List<SmogonSet>>> getTierData(String gen) {
+        if (!loadedTierGens.contains(gen)) {
+            loadTierDataForGen(gen).join();
+        }
+        return tierDataCache.getOrDefault(gen, Map.of());
+    }
+
+    public List<SmogonSet> getTierSetsForPokemon(String gen, String tier, String pokemon) {
+        Map<String, Map<String, List<SmogonSet>>> genData = getTierData(gen);
+        Map<String, List<SmogonSet>> tierMap = genData.get(tier);
+        if (tierMap == null) return List.of();
+        String lower = pokemon.toLowerCase().trim();
+        List<SmogonSet> sets = tierMap.get(lower);
+        if (sets != null) return sets;
+        String displayLike = lower.replace("-", " ");
+        sets = tierMap.get(displayLike);
+        return sets != null ? sets : List.of();
+    }
+
+    public static String translateTier(String tier) {
+        return switch (tier.toLowerCase()) {
+            case "ubers" -> "Ubers";
+            case "ou" -> "OU";
+            case "uu" -> "UU";
+            case "ru" -> "RU";
+            case "nu" -> "NU";
+            case "pu" -> "PU";
+            case "zu" -> "ZU";
+            case "lc" -> "LC";
+            default -> tier.toUpperCase();
+        };
     }
 
     public static String translateGen(String gen) {

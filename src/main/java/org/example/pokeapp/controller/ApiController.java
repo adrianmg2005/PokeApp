@@ -523,6 +523,86 @@ public class ApiController {
         return result;
     }
 
+    // ── Tier List ──
+    @GetMapping("/tiers/{gen}")
+    public Map<String, Object> getTierList(@PathVariable String gen) {
+        if (!gen.matches("gen[3-9]")) return Map.of("error", "Generación no válida");
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("gen", gen);
+        result.put("genLabel", SmogonService.translateGen(gen));
+
+        Map<String, Map<String, List<SmogonSet>>> tierData = smogon.getTierData(gen);
+        List<Map<String, Object>> tiers = new ArrayList<>();
+        String[] tierOrder = {"ubers", "ou", "uu", "ru", "nu", "pu", "zu", "lc"};
+
+        for (String tier : tierOrder) {
+            Map<String, List<SmogonSet>> pokemonMap = tierData.get(tier);
+            if (pokemonMap == null || pokemonMap.isEmpty()) continue;
+
+            Map<String, Object> tierInfo = new LinkedHashMap<>();
+            tierInfo.put("tier", tier);
+            tierInfo.put("label", SmogonService.translateTier(tier));
+
+            List<Map<String, Object>> pokemonList = new ArrayList<>();
+            for (var entry : pokemonMap.entrySet()) {
+                String smogonName = entry.getKey();
+                String apiName = smogonName.replace(" ", "-").toLowerCase();
+                Pokemon p = pokeApi.getPokemon(apiName);
+
+                Map<String, Object> pm = new LinkedHashMap<>();
+                pm.put("smogonName", entry.getKey());
+                if (p != null && p.id > 0 && p.id <= 1025) {
+                    pm.put("id", p.id);
+                    pm.put("name", p.name);
+                    pm.put("spanishName", pokeApi.getSpanishPokemonName(p.name));
+                    pm.put("types", p.types != null ? p.types.stream().map(t -> t.type.name).toList() : List.of());
+                    int total = 0;
+                    for (String s : List.of("hp","attack","defense","special-attack","special-defense","speed")) {
+                        total += p.getStat(s);
+                    }
+                    pm.put("totalStats", total);
+                } else {
+                    pm.put("id", 0);
+                    pm.put("name", apiName);
+                    pm.put("spanishName", smogonName);
+                    pm.put("types", List.of());
+                    pm.put("totalStats", 0);
+                }
+                pm.put("setsCount", entry.getValue().size());
+                pokemonList.add(pm);
+            }
+
+            pokemonList.sort((a, b) -> {
+                int ta = a.get("totalStats") instanceof Integer ? (int) a.get("totalStats") : 0;
+                int tb = b.get("totalStats") instanceof Integer ? (int) b.get("totalStats") : 0;
+                return Integer.compare(tb, ta);
+            });
+
+            tierInfo.put("count", pokemonList.size());
+            tierInfo.put("pokemon", pokemonList);
+            tiers.add(tierInfo);
+        }
+
+        result.put("tiers", tiers);
+        return result;
+    }
+
+    @GetMapping("/tiers/{gen}/{tier}/{pokemon}")
+    public Map<String, Object> getTierPokemonSets(
+            @PathVariable String gen,
+            @PathVariable String tier,
+            @PathVariable String pokemon) {
+        List<SmogonSet> sets = smogon.getTierSetsForPokemon(gen, tier, pokemon);
+        if (sets.isEmpty()) return Map.of("error", "No se encontraron sets");
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("gen", gen);
+        result.put("tier", tier);
+        result.put("pokemon", pokemon);
+        result.put("sets", sets.stream().map(this::formatSmogonSet).toList());
+        return result;
+    }
+
     // ── Type matchup calculation ──
     private Map<String, Object> calculateTypeMatchup(List<String> types) {
         Map<String, Double> effectiveness = new LinkedHashMap<>();

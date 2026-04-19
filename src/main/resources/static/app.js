@@ -427,10 +427,12 @@ function renderPokemonDetail(p, species, evolution, smogon) {
                     <img id="pokemon-sprite" src="${esc(p.spriteArtwork)}" alt="${esc(p.spanishName)}">
                 </div>
                 <div class="sprite-controls">
-                    <button class="active" onclick="switchSprite('${esc(p.spriteArtwork)}', this)">Artwork</button>
-                    <button onclick="switchSprite('${esc(p.spriteArtworkShiny)}', this)">Shiny</button>
-                    <button onclick="switchSprite('${esc(p.sprite)}', this)">Pixel</button>
-                    <button onclick="switchSprite('${esc(p.spriteShiny)}', this)">Pixel ✨</button>
+                    <button class="active" onclick="switchSprite('${esc(p.spriteArtwork)}', this, false)">Artwork</button>
+                    <button onclick="switchSprite('${esc(p.spriteArtworkShiny)}', this, false)">Shiny</button>
+                    <button onclick="switchSprite('${esc(p.spriteAnim)}', this, true)">Animado</button>
+                    <button onclick="switchSprite('${esc(p.spriteAnimShiny)}', this, true)">Anim ✨</button>
+                    <button onclick="switchSprite('${esc(p.sprite)}', this, false)">Pixel</button>
+                    <button onclick="switchSprite('${esc(p.spriteShiny)}', this, false)">Pixel ✨</button>
                 </div>
             </div>
             <div class="pokemon-info-header">
@@ -662,8 +664,20 @@ function showSmogonGen(btn, idx) {
     card.querySelectorAll('.smogon-gen-content').forEach((c, i) => c.style.display = i === idx ? '' : 'none');
 }
 
-function switchSprite(url, btn) {
-    document.getElementById('pokemon-sprite').src = url;
+function switchSprite(url, btn, isAnimated) {
+    const img = document.getElementById('pokemon-sprite');
+    img.src = url;
+    if (isAnimated) {
+        img.classList.add('sprite-animated');
+    } else {
+        img.classList.remove('sprite-animated');
+    }
+    // Fallback: if gif fails, switch back to artwork
+    img.onerror = function() {
+        this.onerror = null;
+        const artworkBtn = btn.parentElement.querySelector('button');
+        if (artworkBtn) artworkBtn.click();
+    };
     btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 }

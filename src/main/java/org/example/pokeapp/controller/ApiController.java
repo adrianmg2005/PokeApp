@@ -110,6 +110,11 @@ public class ApiController {
         result.put("spriteArtwork", "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/" + p.id + ".png");
         result.put("spriteArtworkShiny", "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/" + p.id + ".png");
 
+        // Animated sprites (Pokémon Showdown)
+        String showdownName = p.name.toLowerCase().replaceAll("[^a-z0-9]+", "");
+        result.put("spriteAnim", "https://play.pokemonshowdown.com/sprites/ani/" + showdownName + ".gif");
+        result.put("spriteAnimShiny", "https://play.pokemonshowdown.com/sprites/ani-shiny/" + showdownName + ".gif");
+
         // Held items
         if (p.held_items != null && !p.held_items.isEmpty()) {
             result.put("heldItems", p.held_items.stream().map(h -> h.item.name).toList());

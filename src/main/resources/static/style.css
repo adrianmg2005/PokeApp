@@ -751,6 +751,11 @@ button:focus:not(:focus-visible) { outline: none; }
     transition: transform 0.4s var(--ease-bounce);
     position: relative; z-index: 1;
 }
+.pokemon-sprite-container img.sprite-animated {
+    image-rendering: auto;
+    width: 160px; height: 160px;
+    filter: drop-shadow(0 4px 16px rgba(0,0,0,0.18));
+}
 .pokemon-sprite-container:hover img {
     transform: scale(1.05) translateY(-4px);
 }

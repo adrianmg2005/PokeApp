@@ -1763,6 +1763,51 @@ button:focus:not(:focus-visible) { outline: none; }
 }
 
 /* ════════════════════════════════════════════
+   HAMBURGER MENU BUTTON
+   ════════════════════════════════════════════ */
+.hamburger-btn {
+    display: none;
+    position: fixed; top: 12px; left: 12px; z-index: 200;
+    width: 40px; height: 40px;
+    background: var(--nav-bg); border: none; border-radius: 10px;
+    cursor: pointer; padding: 9px 8px;
+    flex-direction: column; justify-content: space-between;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    transition: background 0.25s var(--ease);
+}
+.hamburger-btn span {
+    display: block; width: 100%; height: 2.5px;
+    background: #fff; border-radius: 2px;
+    transition: all 0.3s var(--ease);
+    transform-origin: center;
+}
+.hamburger-btn.open span:nth-child(1) { transform: translateY(8px) rotate(45deg); }
+.hamburger-btn.open span:nth-child(2) { opacity: 0; }
+.hamburger-btn.open span:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
+
+.mobile-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 90;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(2px);
+    opacity: 0; transition: opacity 0.3s var(--ease);
+}
+.mobile-overlay.visible { opacity: 1; pointer-events: auto; }
+
+/* ════════════════════════════════════════════
+   FILTER BADGE (active count)
+   ════════════════════════════════════════════ */
+.filter-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 9px; font-size: 10px; font-weight: 700;
+    background: var(--red); color: white;
+    margin-left: 6px;
+    animation: badgePop 0.25s var(--ease-spring);
+}
+@keyframes badgePop { from { transform: scale(0); } to { transform: scale(1); } }
+
+/* ════════════════════════════════════════════
    RESPONSIVE
    ════════════════════════════════════════════ */
 @media (max-width: 1200px) {
@@ -1793,6 +1838,29 @@ button:focus:not(:focus-visible) { outline: none; }
     .kbd-hint { display: none; }
 }
 
+@media (max-width: 768px) {
+    .hamburger-btn { display: flex; }
+    .mobile-overlay { display: block; pointer-events: none; }
+    .app-sidebar {
+        position: fixed; left: 0; top: 0; bottom: 0;
+        width: 200px; z-index: 100;
+        transform: translateX(-100%);
+        transition: transform 0.35s var(--ease-spring);
+    }
+    .app-sidebar.mobile-open {
+        transform: translateX(0);
+    }
+    .app-sidebar.mobile-open .nav-btn span { display: block; }
+    .app-sidebar.mobile-open .brand-text { display: block; }
+    .app-sidebar.mobile-open .nav-btn {
+        flex-direction: row; gap: 10px; padding: 12px 14px;
+        justify-content: flex-start;
+    }
+    .app-sidebar.mobile-open .nav-btn.active::before { left: 0; }
+    .app-main { width: 100%; }
+    .panel-sidebar { height: 40vh; }
+}
+
 @media (max-width: 600px) {
     .panel-sidebar { height: 38vh; padding: 14px 10px 10px; }
     .pokemon-grid-item { min-height: 95px; padding: 10px 6px 8px; }
@@ -1810,6 +1878,10 @@ button:focus:not(:focus-visible) { outline: none; }
     .champions-detail-panel { padding: 20px 14px; }
     .champ-detail-header { flex-direction: column; }
     .champ-detail-code-box { min-width: unset; width: 100%; }
+    .compare-hero { padding: 20px 12px; }
+    .compare-title { font-size: 20px; }
+    .compare-subtitle { font-size: 13px; }
+    .filter-chip { padding: 3px 7px; font-size: 9px; }
 }
 
 /* ════════════════════════════════════════════

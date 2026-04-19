@@ -56,9 +56,9 @@ let typesData = {};
 let favorites = JSON.parse(localStorage.getItem('pokeapp_favorites') || '[]');
 let searchHistory = JSON.parse(localStorage.getItem('pokeapp_history') || '[]');
 
-// Filter state
-let activeTypeFilter = null;
-let activeGenFilter = null;
+// Filter state (multi-select)
+let activeTypeFilters = new Set();
+let activeGenFilters = new Set();
 let listMode = 'all';
 
 // Pagination
@@ -74,7 +74,35 @@ let isLoadingMore = false;
 document.addEventListener('DOMContentLoaded', () => {
     checkStatus();
     setupTabs();
+    setupMobileMenu();
 });
+
+function setupMobileMenu() {
+    const btn = document.getElementById('hamburger-btn');
+    const sidebar = document.getElementById('app-sidebar');
+    const overlay = document.getElementById('mobile-overlay');
+    if (!btn || !sidebar || !overlay) return;
+    btn.addEventListener('click', () => {
+        btn.classList.toggle('open');
+        sidebar.classList.toggle('mobile-open');
+        overlay.classList.toggle('visible');
+    });
+    overlay.addEventListener('click', () => {
+        btn.classList.remove('open');
+        sidebar.classList.remove('mobile-open');
+        overlay.classList.remove('visible');
+    });
+    // Close menu when a nav button is clicked
+    sidebar.querySelectorAll('.nav-btn').forEach(navBtn => {
+        navBtn.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                btn.classList.remove('open');
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('visible');
+            }
+        });
+    });
+}
 
 async function checkStatus() {
     try {
@@ -156,11 +184,9 @@ function setupFilters() {
     typeRow.querySelectorAll('.type-chip').forEach(btn => {
         btn.addEventListener('click', () => {
             const t = btn.dataset.type;
-            if (activeTypeFilter === t) { activeTypeFilter = null; btn.classList.remove('selected'); }
-            else {
-                typeRow.querySelectorAll('.type-chip').forEach(b => b.classList.remove('selected'));
-                activeTypeFilter = t; btn.classList.add('selected');
-            }
+            if (activeTypeFilters.has(t)) { activeTypeFilters.delete(t); btn.classList.remove('selected'); }
+            else { activeTypeFilters.add(t); btn.classList.add('selected'); }
+            updateFilterBadge();
             applyFilters();
         });
     });
@@ -172,14 +198,22 @@ function setupFilters() {
     genRow.querySelectorAll('.gen-chip').forEach(btn => {
         btn.addEventListener('click', () => {
             const g = parseInt(btn.dataset.gen);
-            if (activeGenFilter === g) { activeGenFilter = null; btn.classList.remove('selected'); }
-            else {
-                genRow.querySelectorAll('.gen-chip').forEach(b => b.classList.remove('selected'));
-                activeGenFilter = g; btn.classList.add('selected');
-            }
+            if (activeGenFilters.has(g)) { activeGenFilters.delete(g); btn.classList.remove('selected'); }
+            else { activeGenFilters.add(g); btn.classList.add('selected'); }
+            updateFilterBadge();
             applyFilters();
         });
     });
+}
+
+function updateFilterBadge() {
+    const btn = document.getElementById('filter-toggle');
+    const count = activeTypeFilters.size + activeGenFilters.size;
+    let badge = btn.querySelector('.filter-badge');
+    if (count > 0) {
+        if (!badge) { badge = document.createElement('span'); badge.className = 'filter-badge'; btn.appendChild(badge); }
+        badge.textContent = count;
+    } else if (badge) { badge.remove(); }
 }
 
 function applyFilters() {
@@ -193,12 +227,14 @@ function applyFilters() {
         list = list.filter(p => histNames.includes(p.name));
         list.sort((a, b) => histNames.indexOf(a.name) - histNames.indexOf(b.name));
     }
-    if (activeTypeFilter) {
-        list = list.filter(p => p.types && p.types.includes(activeTypeFilter));
+    if (activeTypeFilters.size > 0) {
+        list = list.filter(p => p.types && [...activeTypeFilters].every(t => p.types.includes(t)));
     }
-    if (activeGenFilter !== null) {
-        const range = GEN_RANGES[activeGenFilter];
-        list = list.filter(p => p.id >= range.min && p.id <= range.max);
+    if (activeGenFilters.size > 0) {
+        list = list.filter(p => [...activeGenFilters].some(gi => {
+            const range = GEN_RANGES[gi];
+            return p.id >= range.min && p.id <= range.max;
+        }));
     }
     if (searchQ.length >= 1) {
         list = list.filter(p =>
